@@ -1,6 +1,6 @@
 import requests
 
-BASE = "https://unshaken-quote-rust.ngrok-free.dev"  # your ngrok URL
+BASE = "https://api-happyrobot-54705137438.us-central1.run.app"  # your ngrok URL
 headers = {"x-api-key": "happyrobot-key-2024"}
 
 # Get all loads
