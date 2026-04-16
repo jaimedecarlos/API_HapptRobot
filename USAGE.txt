@@ -1,0 +1,250 @@
+================================================================================
+                      HAPPYROBOT LOADS & CALLS API - USAGE GUIDE
+================================================================================
+
+REQUIREMENTS
+------------
+- Python 3.9+
+- Ngrok account (https://ngrok.com) with authtoken configured
+- All dependencies installed:
+    pip3 install fastapi uvicorn pyngrok python-dotenv aiosqlite
+
+
+--------------------------------------------------------------------------------
+STARTING THE API
+--------------------------------------------------------------------------------
+
+Step 1 — Start the API server (Terminal window 1):
+
+    cd ~/Desktop/HappyRobot/API
+    python3 -m uvicorn main:app --host 0.0.0.0 --port 8000
+
+    You should see:
+        INFO: Uvicorn running on http://0.0.0.0:8000
+
+Step 2 — Expose publicly with Ngrok (Terminal window 2):
+
+    ngrok http 8000 
+
+    Ngrok will display a public URL like:
+        Forwarding  https://abc123.ngrok-free.app -> http://localhost:8000
+
+    Share this URL + an API key with anyone who needs access.
+
+Step 3 — Interactive docs (optional):
+    Open in browser: https://unshaken-quote-rust.ngrok-free.dev/docs
+    This loads the Swagger UI where you can test every endpoint visually.
+
+
+--------------------------------------------------------------------------------
+AUTHENTICATION
+--------------------------------------------------------------------------------
+
+Every request must include an API key in the request header:
+
+    X-API-Key: your-api-key-here
+
+Requests without a valid key will receive:  403 Forbidden
+
+
+--------------------------------------------------------------------------------
+MANAGING API KEYS
+--------------------------------------------------------------------------------
+
+Keys are stored in: api_keys.json
+
+Use the key manager CLI:
+
+    List all keys:
+        python3 manage_keys.py list
+
+    Add a new key:
+        python3 manage_keys.py add my-new-secret-key
+
+    Remove a key:
+        python3 manage_keys.py remove my-old-key
+
+You can also edit api_keys.json directly. It is a plain JSON array:
+    ["key-one", "key-two", "key-three"]
+
+NOTE: Changes to api_keys.json take effect immediately — no restart needed.
+
+
+--------------------------------------------------------------------------------
+API ENDPOINTS
+--------------------------------------------------------------------------------
+
+Base URL:  https://unshaken-quote-rust.ngrok-free.dev
+
+  GET    /              Health check — confirms the API is running
+
+  -- Loads --
+  GET    /loads         List all loads
+  GET    /loads/{id}    Get a single load by load_id
+  POST   /loads         Create a new load
+  PUT    /loads/{id}    Update fields on an existing load
+  DELETE /loads/{id}    Delete a load
+
+  -- Calls --
+  GET    /calls         List all calls
+  GET    /calls/{id}    Get a single call by id
+  POST   /calls         Create a new call record
+  PUT    /calls/{id}    Update fields on an existing call
+  DELETE /calls/{id}    Delete a call record
+
+
+
+--------------------------------------------------------------------------------
+LOAD FIELDS
+--------------------------------------------------------------------------------
+
+  Field               Type     Required   Description
+  ------------------  -------  ---------  ------------------------------------
+  load_id             TEXT     YES        Unique identifier for the load
+  origin              TEXT     YES        Pickup city/state
+  destination         TEXT     YES        Delivery city/state
+  equipment_type      TEXT     YES        e.g. "Dry Van", "Flatbed", "Reefer"
+  pickup_datetime     TEXT     no         e.g. "2024-12-01 08:00"
+  delivery_datetime   TEXT     no         e.g. "2024-12-02 17:00"
+  loadboard_rate      REAL     no         Dollar amount, e.g. 2500.00
+  notes               TEXT     no         Free-text notes
+  weight              REAL     no         Weight in lbs
+  commodity_type      TEXT     no         e.g. "Electronics", "Produce"
+  num_of_pieces       INTEGER  no         Number of pieces/pallets
+  miles               REAL     no         Total trip miles
+  dimensions          TEXT     no         e.g. "48x96x60"
+  call_result         TEXT     no         Outcome of the call, e.g. "booked", "no answer"
+  mc_number           INTEGER  no         Carrier MC number
+  agreed_rate         REAL     no         Negotiated rate, e.g. 2300.00
+  assigned            TEXT     YES        Whether load is assigned, default "no"
+
+
+--------------------------------------------------------------------------------
+CALL FIELDS
+--------------------------------------------------------------------------------
+
+  Field               Type     Required   Description
+  ------------------  -------  ---------  ------------------------------------
+  id                   INTEGER  auto       Auto-assigned record ID
+  call_result          TEXT     YES        Outcome, e.g. "booked", "declined", "no answer"
+  decline_reason       TEXT     no         Reason for declining, e.g. "rate too low"
+  call_duration        REAL     YES        Duration in seconds, e.g. 182.5
+  agreed_rate          REAL     YES        Final negotiated rate, e.g. 2300.00
+  original_rate        REAL     YES        Initial posted/offered rate, e.g. 2500.00
+  caller_satisfaction  TEXT     YES        e.g. "satisfied", "neutral", "dissatisfied"
+
+
+--------------------------------------------------------------------------------
+EXAMPLE REQUESTS (curl)
+--------------------------------------------------------------------------------
+
+--- Health check ---
+curl https://unshaken-quote-rust.ngrok-free.dev
+
+--- List all loads ---
+curl https://unshaken-quote-rust.ngrok-free.dev/loads \
+  -H "X-API-Key: your-api-key-here"
+
+--- Get a single load ---
+curl https://unshaken-quote-rust.ngrok-free.dev/loads/OEP76434 \
+  -H "X-API-Key: happyrobot-key-2024"
+
+--- Create a load ---
+curl -X POST https://unshaken-quote-rust.ngrok-free.dev/loads \
+  -H "X-API-Key: your-api-key-here" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "load_id": "LOAD001",
+    "origin": "Chicago, IL",
+    "destination": "Dallas, TX",
+    "pickup_datetime": "2024-12-01 08:00",
+    "delivery_datetime": "2024-12-02 17:00",
+    "equipment_type": "Dry Van",
+    "loadboard_rate": 2500.00,
+    "weight": 42000,
+    "commodity_type": "General Freight",
+    "miles": 925.0
+  }'
+
+--- Update a load ---
+curl -X PUT https://unshaken-quote-rust.ngrok-free.dev/loads/CAO34288 \
+  -H "X-API-Key: happyrobot-key-2024" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "assigned": "no",
+    "notes": ""
+  }'
+
+--- Delete a load ---
+curl -X DELETE https://unshaken-quote-rust.ngrok-free.dev/loads/LOAD001 \
+  -H "X-API-Key: happyrobot-key-2024"
+
+
+--- List all calls ---
+curl https://unshaken-quote-rust.ngrok-free.dev/calls \
+  -H "X-API-Key: your-api-key-here"
+
+--- Get a single call ---
+curl https://unshaken-quote-rust.ngrok-free.dev/calls/1 \
+  -H "X-API-Key: your-api-key-here"
+
+--- Create a call ---
+curl -X POST https://unshaken-quote-rust.ngrok-free.dev/calls \
+  -H "X-API-Key: your-api-key-here" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "call_result": "booked",
+    "decline_reason": null,
+    "call_duration": 182.5,
+    "agreed_rate": 2300.00,
+    "original_rate": 2500.00,
+    "caller_satisfaction": "satisfied"
+  }'
+
+--- Create a call (declined) ---
+curl -X POST https://unshaken-quote-rust.ngrok-free.dev/calls \
+  -H "X-API-Key: your-api-key-here" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "call_result": "declined",
+    "decline_reason": "rate too low",
+    "call_duration": 45.0,
+    "agreed_rate": 0,
+    "original_rate": 2500.00,
+    "caller_satisfaction": "dissatisfied"
+  }'
+
+--- Update a call ---
+curl -X PUT https://unshaken-quote-rust.ngrok-free.dev/calls/1 \
+  -H "X-API-Key: your-api-key-here" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "agreed_rate": 2350.00
+  }'
+
+--- Delete a call ---
+curl -X DELETE https://unshaken-quote-rust.ngrok-free.dev/calls/1 \
+  -H "X-API-Key: happyrobot-key-2024"
+
+
+--------------------------------------------------------------------------------
+FILE OVERVIEW
+--------------------------------------------------------------------------------
+
+  main.py          FastAPI application — endpoints and auth logic
+  database.py      SQLite connection and table creation
+  loads.db         The database file (auto-created on first run)
+  api_keys.json    List of valid API keys
+  manage_keys.py   CLI tool to add/remove API keys
+  requirements.txt Python package dependencies
+  USAGE.txt        This file
+
+
+--------------------------------------------------------------------------------
+STOPPING THE SERVER
+--------------------------------------------------------------------------------
+
+In each terminal window, press:  Ctrl + C
+
+
+================================================================================

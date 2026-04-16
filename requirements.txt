@@ -1,0 +1,5 @@
+fastapi>=0.128.0
+uvicorn>=0.39.0
+pyngrok>=8.0.0
+python-dotenv>=1.2.0
+aiosqlite>=0.22.0
