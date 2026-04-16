@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Acme Logistics Loads and Calls Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #22263a;
+      --border: #2e3350;
+      --accent: #4f6ef7;
+      --accent2: #7c3aed;
+      --green: #22c55e;
+      --red: #ef4444;
+      --yellow: #f59e0b;
+      --text: #e2e8f0;
+      --muted: #8892a4;
+      --header-h: 56px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      font-size: 13px;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      height: var(--header-h);
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    header .logo {
+      width: 32px; height: 32px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; font-weight: 800; color: #fff; letter-spacing: -1px;
+    }
+    header h1 { font-size: 16px; font-weight: 700; color: #fff; }
+    header .tagline { color: var(--muted); font-size: 12px; }
+    .refresh-info {
+      margin-left: auto;
+      display: flex; align-items: center; gap: 8px;
+      color: var(--muted); font-size: 12px;
+    }
+    .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--green);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    /* ── Layout ── */
+    .dashboard {
+      padding: 20px 24px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto auto;
+      gap: 20px;
+    }
+
+    /* ── Panel ── */
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .panel-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .panel-icon {
+      width: 28px; height: 28px; border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+    }
+    .panel-icon.loads  { background: rgba(79,110,247,0.15); }
+    .panel-icon.calls  { background: rgba(124,58,237,0.15); }
+    .panel-icon.metrics{ background: rgba(34,197,94,0.15); }
+    .panel-title { font-size: 14px; font-weight: 600; color: #fff; }
+    .panel-subtitle { font-size: 11px; color: var(--muted); margin-top: 1px; }
+    .count-badge {
+      margin-left: auto;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 2px 10px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .panel-body {
+      flex: 1;
+      overflow-y: auto;
+      max-height: 360px;
+    }
+    .panel-body::-webkit-scrollbar { width: 4px; }
+    .panel-body::-webkit-scrollbar-track { background: transparent; }
+    .panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    /* ── Table ── */
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      position: sticky; top: 0;
+      background: var(--surface2);
+      padding: 8px 14px;
+      text-align: left;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+    }
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+    }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: var(--surface2); }
+    tbody tr.clickable { cursor: pointer; }
+    td {
+      padding: 10px 14px;
+      color: var(--text);
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 160px;
+    }
+
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: capitalize;
+    }
+    .badge-green { background: rgba(34,197,94,0.15); color: var(--green); }
+    .badge-red   { background: rgba(239,68,68,0.15);  color: var(--red); }
+    .badge-yellow{ background: rgba(245,158,11,0.15); color: var(--yellow); }
+    .badge-blue  { background: rgba(79,110,247,0.15); color: #7ea6ff; }
+    .badge-gray  { background: rgba(136,146,164,0.15);color: var(--muted); }
+
+    /* ── Metrics panel spans full width ── */
+    .metrics-panel {
+      grid-column: 1 / -1;
+    }
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0;
+    }
+    .metric-card {
+      padding: 28px 24px;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: background 0.2s;
+    }
+    .metric-card:last-child { border-right: none; }
+    .metric-card:hover { background: var(--surface2); }
+    .metric-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+    }
+    .metric-value {
+      font-size: 40px;
+      font-weight: 800;
+      letter-spacing: -1px;
+      line-height: 1;
+    }
+    .metric-value.green { color: var(--green); }
+    .metric-value.blue  { color: #7ea6ff; }
+    .metric-value.yellow{ color: var(--yellow); }
+    .metric-value.purple{ color: #a78bfa; }
+    .metric-sub {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    /* ── Modal ── */
+    .modal-backdrop {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(4px);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      width: 480px;
+      max-width: calc(100vw - 40px);
+      overflow: hidden;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+      animation: slideUp 0.2s ease;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(12px); opacity: 0; }
+      to   { transform: translateY(0);   opacity: 1; }
+    }
+    .modal-head {
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .modal-head h2 { font-size: 15px; font-weight: 700; color: #fff; flex: 1; }
+    .modal-close {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      width: 28px; height: 28px;
+      border-radius: 7px;
+      cursor: pointer;
+      font-size: 16px;
+      display: flex; align-items: center; justify-content: center;
+      transition: color 0.15s;
+    }
+    .modal-close:hover { color: #fff; }
+    .modal-body { padding: 20px; }
+    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .detail-item {}
+    .detail-item .key {
+      font-size: 10px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--muted); margin-bottom: 4px;
+    }
+    .detail-item .val {
+      font-size: 13px; color: #fff; font-weight: 500; word-break: break-word;
+    }
+
+    /* ── Loading / Error states ── */
+    .state-msg {
+      padding: 32px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .spinner {
+      width: 22px; height: 22px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin: 0 auto 10px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 900px) {
+      .dashboard { grid-template-columns: 1fr; }
+      .metrics-panel { grid-column: 1; }
+      .metrics-grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 520px) {
+      .metrics-grid { grid-template-columns: 1fr; }
+      .metric-card { border-right: none; border-bottom: 1px solid var(--border); }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">HR</div>
+  <div>
+    <h1>Acme Logistics Loads and Calls Dashboard</h1>
+    <div class="tagline">Live freight operations metrics</div>
+  </div>
+  <div class="refresh-info">
+    <div class="dot"></div>
+    <span id="lastUpdate">Loading…</span>
+  </div>
+</header>
+
+<div class="dashboard">
+
+  <!-- ── Loads Panel ── -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-icon loads">📦</div>
+      <div>
+        <div class="panel-title">Loads</div>
+        <div class="panel-subtitle">Click a row for full details</div>
+      </div>
+      <span class="count-badge" id="loads-count">—</span>
+    </div>
+    <div class="panel-body" id="loads-body">
+      <div class="state-msg"><div class="spinner"></div>Fetching loads…</div>
+    </div>
+  </div>
+
+  <!-- ── Calls Panel ── -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-icon calls">📞</div>
+      <div>
+        <div class="panel-title">Calls</div>
+        <div class="panel-subtitle">All recent call records</div>
+      </div>
+      <span class="count-badge" id="calls-count">—</span>
+    </div>
+    <div class="panel-body" id="calls-body">
+      <div class="state-msg"><div class="spinner"></div>Fetching calls…</div>
+    </div>
+  </div>
+
+  <!-- ── Metrics Panel ── -->
+  <div class="panel metrics-panel">
+    <div class="panel-header">
+      <div class="panel-icon metrics">📊</div>
+      <div>
+        <div class="panel-title">Key Metrics</div>
+        <div class="panel-subtitle">Aggregated across all data</div>
+      </div>
+    </div>
+    <div class="metrics-grid" id="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-label">Successful Calls</div>
+        <div class="metric-value green" id="m-success">—</div>
+        <div class="metric-sub" id="m-success-sub">of total calls</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Booked Loads</div>
+        <div class="metric-value blue" id="m-booked">—</div>
+        <div class="metric-sub" id="m-booked-sub">of total loads</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Avg Rate Difference</div>
+        <div class="metric-value yellow" id="m-rate-diff">—</div>
+        <div class="metric-sub">agreed vs original rate</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Avg Call Duration</div>
+        <div class="metric-value purple" id="m-duration">—</div>
+        <div class="metric-sub">seconds per call</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Load Detail Modal ── -->
+<div class="modal-backdrop" id="modal-backdrop">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="modal-title">Load Details</h2>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="detail-grid" id="modal-content"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API_BASE = 'https://api-happyrobot-54705137438.us-central1.run.app';
+  const API_KEY  = 'happyrobot-key-2024';
+  const HEADERS  = {
+    'Authorization': `Bearer ${API_KEY}`,
+    'x-api-key': API_KEY,
+    'ngrok-skip-browser-warning': '1',
+  };
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+
+  function pct(n, d) {
+    if (!d) return '0%';
+    return (n / d * 100).toFixed(1) + '%';
+  }
+
+  function fmt(val) {
+    if (val === null || val === undefined || val === '') return '—';
+    return val;
+  }
+
+  function fmtCurrency(val) {
+    if (val === null || val === undefined) return '—';
+    return '$' + Number(val).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function callBadge(result) {
+    if (!result) return `<span class="badge badge-gray">—</span>`;
+    const r = String(result).toLowerCase();
+    if (r === 'Success') return `<span class="badge badge-green">${result}</span>`;
+    if (r === 'Rate too high' || r === 'Not interested') return `<span class="badge badge-red">${result}</span>`;
+    return `<span class="badge badge-yellow">${result}</span>`;
+  }
+
+  function satisfactionBadge(val) {
+    if (!val) return `<span class="badge badge-gray">—</span>`;
+    const v = String(val).toLowerCase();
+    if (v === 'satisfied') return `<span class="badge badge-green">${val}</span>`;
+    if (v === 'unsatisfied' || v === 'dissatisfied') return `<span class="badge badge-red">${val}</span>`;
+    return `<span class="badge badge-yellow">${val}</span>`;
+  }
+
+  // ── Fetch ─────────────────────────────────────────────────────────────────
+
+  async function fetchJSON(path) {
+    const res = await fetch(API_BASE + path, { headers: HEADERS });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  }
+
+  // ── Loads ─────────────────────────────────────────────────────────────────
+
+  function renderLoads(data) {
+    const rows = Array.isArray(data) ? data : (data.loads || data.data || []);
+    document.getElementById('loads-count').textContent = `${rows.length} loads`;
+
+    if (!rows.length) {
+      document.getElementById('loads-body').innerHTML =
+        '<div class="state-msg">No load data available.</div>';
+      return rows;
+    }
+
+    const html = `
+      <table>
+        <thead>
+          <tr>
+            <th>Load ID</th>
+            <th>Origin</th>
+            <th>Destination</th>
+            <th>Equipment</th>
+            <th>Assigned</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map((l, i) => {
+            const assigned = String(l.assigned || '').toLowerCase();
+            const aClass = assigned === 'yes' ? 'badge-green' : (assigned === 'no' ? 'badge-red' : 'badge-gray');
+            const aLabel = l.assigned || '—';
+            return `
+              <tr class="clickable" onclick="openModal(${i})">
+                <td><strong>${fmt(l.load_id)}</strong></td>
+                <td title="${fmt(l.origin)}">${fmt(l.origin)}</td>
+                <td title="${fmt(l.destination)}">${fmt(l.destination)}</td>
+                <td>${fmt(l.equipment_type || l.trailer_type)}</td>
+                <td><span class="badge ${aClass}">${aLabel}</span></td>
+              </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
+    document.getElementById('loads-body').innerHTML = html;
+    return rows;
+  }
+
+  // ── Modal ─────────────────────────────────────────────────────────────────
+
+  let _loadRows = [];
+
+  function openModal(idx) {
+    const l = _loadRows[idx];
+    if (!l) return;
+    document.getElementById('modal-title').textContent = l.load_id || 'Load Details';
+
+    const fields = [
+      ['Load ID',         l.load_id],
+      ['Origin',          l.origin],
+      ['Destination',     l.destination],
+      ['Equipment Type',  l.equipment_type || l.trailer_type],
+      ['Pickup',          l.pickup_datetime],
+      ['Delivery',        l.delivery_datetime],
+      ['Rate',            fmtCurrency(l.loadboard_rate)],
+      ['Weight',          l.weight ? `${Number(l.weight).toLocaleString()} lbs` : null],
+      ['Commodity',       l.commodity_type],
+      ['Miles',           l.miles ? `${l.miles} mi` : null],
+      ['Assigned',        l.assigned],
+    ];
+
+    document.getElementById('modal-content').innerHTML = fields.map(([k, v]) => `
+      <div class="detail-item">
+        <div class="key">${k}</div>
+        <div class="val">${fmt(v)}</div>
+      </div>`).join('');
+
+    document.getElementById('modal-backdrop').classList.add('open');
+  }
+
+  function closeModal() {
+    document.getElementById('modal-backdrop').classList.remove('open');
+  }
+  document.getElementById('modal-backdrop').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeModal();
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+  // ── Calls ─────────────────────────────────────────────────────────────────
+
+  function renderCalls(data) {
+    const rows = Array.isArray(data) ? data : (data.calls || data.data || []);
+    document.getElementById('calls-count').textContent = `${rows.length} calls`;
+
+    if (!rows.length) {
+      document.getElementById('calls-body').innerHTML =
+        '<div class="state-msg">No call data available.</div>';
+      return rows;
+    }
+
+    const html = `
+      <table>
+        <thead>
+          <tr>
+            <th>Result</th>
+            <th>Decline Reason</th>
+            <th>Duration (s)</th>
+            <th>Agreed Rate</th>
+            <th>Original Rate</th>
+            <th>Satisfaction</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(c => `
+            <tr>
+              <td>${callBadge(c.call_result)}</td>
+              <td title="${fmt(c.decline_reason)}">${fmt(c.decline_reason)}</td>
+              <td>${c.call_duration != null ? Number(c.call_duration).toFixed(1) : '—'}</td>
+              <td>${fmtCurrency(c.agreed_rate)}</td>
+              <td>${fmtCurrency(c.original_rate)}</td>
+              <td>${satisfactionBadge(c.caller_satisfaction)}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
+    document.getElementById('calls-body').innerHTML = html;
+    return rows;
+  }
+
+  // ── Metrics ───────────────────────────────────────────────────────────────
+
+  function renderMetrics(loads, calls) {
+    // 1. Successful calls (booked)
+    const successCalls = calls.filter(c => String(c.call_result || '').toLowerCase() === 'success').length;
+    document.getElementById('m-success').textContent = pct(successCalls, calls.length);
+    document.getElementById('m-success-sub').textContent =
+      `${successCalls} booked of ${calls.length} calls`;
+
+    // 2. Booked loads (assigned = yes)
+    const bookedLoads = loads.filter(l => String(l.assigned || '').toLowerCase() === 'yes').length;
+    document.getElementById('m-booked').textContent = pct(bookedLoads, loads.length);
+    document.getElementById('m-booked-sub').textContent =
+      `${bookedLoads} assigned of ${loads.length} loads`;
+
+    // 3. Average rate difference (original - agreed)
+    const withRates = calls.filter(c => c.agreed_rate != null && c.original_rate != null);
+    if (withRates.length) {
+      const avgDiff = withRates.reduce((s, c) =>
+        s + (Number(c.original_rate) - Number(c.agreed_rate)), 0) / withRates.length;
+      const sign = avgDiff >= 0 ? '-' : '+';
+      document.getElementById('m-rate-diff').textContent =
+        `${sign}$${Math.abs(avgDiff).toFixed(0)}`;
+    } else {
+      document.getElementById('m-rate-diff').textContent = '—';
+    }
+
+    // 4. Average call duration
+    const withDur = calls.filter(c => c.call_duration != null);
+    if (withDur.length) {
+      const avgDur = withDur.reduce((s, c) => s + Number(c.call_duration), 0) / withDur.length;
+      document.getElementById('m-duration').textContent = avgDur.toFixed(1) + 's';
+    } else {
+      document.getElementById('m-duration').textContent = '—';
+    }
+  }
+
+  // ── Main refresh ─────────────────────────────────────────────────────────
+
+  async function refresh() {
+    try {
+      const [loadsData, callsData] = await Promise.all([
+        fetchJSON('/loads'),
+        fetchJSON('/calls'),
+      ]);
+
+      const loads = renderLoads(loadsData);
+      _loadRows = loads;
+      const calls = renderCalls(callsData);
+      renderMetrics(loads, calls);
+
+      const now = new Date();
+      document.getElementById('lastUpdate').textContent =
+        'Updated ' + now.toLocaleTimeString();
+    } catch (err) {
+      console.error(err);
+      document.getElementById('lastUpdate').textContent = 'Error — retrying…';
+      ['loads-body', 'calls-body'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el.querySelector('.spinner')) {
+          el.innerHTML = `<div class="state-msg">⚠️ Failed to load: ${err.message}</div>`;
+        }
+      });
+    }
+  }
+
+  refresh();
+  setInterval(refresh, 30_000);
+</script>
+</body>
+</html>
