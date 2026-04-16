@@ -89,7 +89,7 @@ class Call(BaseModel):
     call_result: str
     decline_reason: Optional[str] = None
     call_duration: float
-    agreed_rate: float
+    agreed_rate: Optional[float] = None
     original_rate: float
     caller_satisfaction: str
 
